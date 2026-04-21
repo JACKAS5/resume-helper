@@ -10,14 +10,32 @@ spring:
     hibernate:
       ddl-auto: update
     show-sql: true
+
+  security:
+    oauth2:
+      client:
+        registration:
+          google:
+            client-id: ${GOOGLE_CLIENT_ID}
+            client-secret: ${GOOGLE_CLIENT_SECRET}
+            scope:
+              - email
+              - profile
+
+application:
+  security:
+    jwt:
+      secret-key: ${JWT_SECRET_KEY:404E635266556A586E3272357538782F413F4428472B4B6250645367566B5970}
+      expiration: 86400000 # 1 day
   servlet:
     multipart:
       max-file-size: 10MB
       max-request-size: 10MB
 
-openclaw:
-  api:
-    key: ${OPENCLAW_API_KEY:your-openclaw-key}
+local:
+  ai:
+    url: ${LOCAL_AI_URL:http://localhost:11434/api/generate}
+    model: mistral
 
 discord:
   webhook:

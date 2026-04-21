@@ -5,13 +5,17 @@ import jobsReducer         from './slices/jobsSlice';
 import resumesReducer      from './slices/resumesSlice';
 import coverLettersReducer from './slices/coverLettersSlice';
 import applicationsReducer from './slices/applicationsSlice';
+import authReducer from './slices/authSlice';
+import uiReducer from './slices/uiSlice';
 
 export const store = configureStore({
   reducer: {
-    jobs:         jobsReducer,
-    resumes:      resumesReducer,
+    jobs: jobsReducer,
+    resumes: resumesReducer,
     coverLetters: coverLettersReducer,
     applications: applicationsReducer,
+    auth: authReducer,
+    ui: uiReducer,
   },
 });
 

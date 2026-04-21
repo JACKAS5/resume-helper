@@ -1,13 +1,29 @@
-# Stage 1: build
-FROM maven:3.9.0-eclipse-temurin-17 AS build
+# Development stage
+FROM eclipse-temurin:21-jdk-alpine AS dev
 WORKDIR /app
-COPY pom.xml .
-COPY src ./src
-RUN mvn clean package -DskipTests
+# Only copy the wrapper and pom first to cache dependencies
+COPY .mvn/ .mvn
+COPY mvnw pom.xml ./
+RUN chmod +x mvnw && ./mvnw dependency:go-offline
 
-# Stage 2: runtime
-FROM eclipse-temurin:17-jdk-alpine
-WORKDIR /app
-COPY --from=build /app/target/backend-0.0.1-SNAPSHOT.jar app.jar
+# The source will be mounted via volume in docker-compose for dev
 EXPOSE 8080
-CMD ["java", "-jar", "app.jar"]
+ENTRYPOINT ["./mvnw", "spring-boot:run"]
+
+# Build stage (for production)
+FROM dev AS build
+COPY src ./src
+RUN ./mvnw clean package -DskipTests
+# Extract layers
+RUN java -Djarmode=layertools -jar target/*.jar extract
+
+# Production stage
+FROM eclipse-temurin:21-jre-alpine AS prod
+WORKDIR /app
+# Copy layers for better caching
+COPY --from=build /app/dependencies/ ./
+COPY --from=build /app/spring-boot-loader/ ./
+COPY --from=build /app/snapshot-dependencies/ ./
+COPY --from=build /app/application/ ./
+EXPOSE 8080
+ENTRYPOINT ["java", "org.springframework.boot.loader.launch.JarLauncher"]

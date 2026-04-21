@@ -2,7 +2,6 @@ package com.resumehelper.backend.coverletter.service;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
@@ -11,21 +10,22 @@ import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
+import java.util.Scanner;
 
 @Service
 public class OpenClawService {
 
-    private static final String API_URL = "https://api.openai.com/v1/chat/completions";
-    private static final String MODEL = "gpt-3.5-turbo";
+    @Value("${local.ai.url}")
+    private String apiUrl;
 
-    @Value("${openclaw.api.key}")
-    private String apiKey;
+    @Value("${local.ai.model}")
+    private String model;
 
     private final HttpClient httpClient = HttpClient.newHttpClient();
     private final ObjectMapper objectMapper = new ObjectMapper();
 
     public String generateCoverLetter(String resumeText, String jobDescription) {
-        return callOpenAi(buildPrompt(resumeText, jobDescription));
+        return callLocalAi(buildPrompt(resumeText, jobDescription));
     }
 
     public String rankResumeAgainstJob(String resumeText, String jobDescription) {
@@ -41,38 +41,33 @@ public class OpenClawService {
                 JOB DESCRIPTION:
                 %s
                 """.formatted(resumeText, jobDescription);
-        return callOpenAi(prompt);
+        return callLocalAi(prompt);
     }
 
-    private String callOpenAi(String prompt) {
+    private String callLocalAi(String prompt) {
         try {
             ObjectNode body = objectMapper.createObjectNode();
-            body.put("model", MODEL);
-            body.put("max_tokens", 800);
-
-            ArrayNode messages = body.putArray("messages");
-            ObjectNode userMsg = messages.addObject();
-            userMsg.put("role", "user");
-            userMsg.put("content", prompt);
+            body.put("model", model);
+            body.put("prompt", prompt);
+            body.put("stream", false); // Disable streaming for easier handling
 
             HttpRequest request = HttpRequest.newBuilder()
-                    .uri(URI.create(API_URL))
+                    .uri(URI.create(apiUrl))
                     .header("Content-Type", "application/json")
-                    .header("Authorization", "Bearer " + apiKey)
                     .POST(HttpRequest.BodyPublishers.ofString(objectMapper.writeValueAsString(body)))
                     .build();
 
             HttpResponse<String> response = httpClient.send(request, HttpResponse.BodyHandlers.ofString());
 
             if (response.statusCode() != 200) {
-                throw new RuntimeException("OpenAI API error: " + response.statusCode() + " " + response.body());
+                throw new RuntimeException("Local AI error: " + response.statusCode() + " " + response.body());
             }
 
             JsonNode json = objectMapper.readTree(response.body());
-            return json.at("/choices/0/message/content").asText();
+            return json.get("response").asText();
 
         } catch (Exception e) {
-            throw new RuntimeException("Failed to call OpenAI API", e);
+            throw new RuntimeException("Failed to call Local AI (Ollama)", e);
         }
     }
 
